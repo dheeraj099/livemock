@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LiveMock
 
-## Getting Started
+> Browser-based API mock server — define endpoints visually, intercept real `fetch` calls via a Service Worker, and watch requests log in real time.
 
-First, run the development server:
+**No backend. No config files. No code changes to your app.**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What it does
+
+LiveMock runs entirely in the browser. You define mock API routes (method, path, status code, response body, delay), and a registered Service Worker silently intercepts matching `fetch` calls — returning your mocked response before any real network request is made.
+
+The request log panel updates live as traffic flows through, showing what was matched, the status code, and response time.
+
+## Key Features
+
+- **Visual route editor** — define method, path, status code, JSON response body, artificial delay, and custom headers
+- **Service Worker interception** — real `fetch` calls are intercepted at the network layer, not mocked via monkey-patching
+- **Path parameter support** — `/api/users/:id` matches `/api/users/42`, `/api/users/abc`, etc.
+- **Live request log** — every intercepted request appears in real time with method, status, path, and latency
+- **Try It panel** — send a test request directly from the editor and see the response inline
+- **Mock on/off toggle** — disable all interception instantly without losing your route definitions
+- **Import / Export** — save and load route collections as JSON files
+- **Persistent state** — routes survive page refreshes via `localStorage`
+- **Demo routes** — ships with a realistic `users` API to explore immediately
+
+## How the Service Worker works
+
+```
+Browser tab (LiveMock app)
+  │
+  ├─ Registers /sw.js with scope "/"
+  ├─ Sends route definitions to SW via postMessage
+  │
+  └─ On fetch() call:
+       SW intercepts → matches route → waits delay → returns mock Response
+       SW broadcasts log entry via BroadcastChannel → UI updates live
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The Service Worker receives route updates whenever you add, edit, or toggle a route. Interception happens at the browser network layer — nothing in your application code changes.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| State | Zustand with localStorage persistence |
+| Styling | Tailwind CSS v4 |
+| Interception | Service Worker API + BroadcastChannel |
+| Icons | Lucide React |
 
-## Learn More
+## Running Locally
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+git clone https://github.com/dheeraj099/livemock.git
+cd livemock
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Note:** Service Workers require `localhost` or HTTPS. The app will not intercept requests on `http://` non-localhost origins.
 
-## Deploy on Vercel
+## Building
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build
+npm start
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture
+
+```
+livemock/
+  public/
+    sw.js              # Service Worker — fetch interception + BroadcastChannel logging
+  app/
+    page.tsx           # Root client component — mounts panels, registers SW hook
+    layout.tsx
+    globals.css
+  components/
+    Toolbar.tsx        # Top bar — SW status, mock toggle, import/export
+    RouteList.tsx      # Left panel — route list with enable/disable per route
+    RouteEditor.tsx    # Center panel — edit route, status presets, Try It panel
+    RequestLog.tsx     # Right panel — live intercepted request log
+  store/
+    mockStore.ts       # Zustand store — routes, logs, SW status, persist middleware
+  hooks/
+    useServiceWorker.ts  # SW registration, BroadcastChannel listener, route sync
+  types/
+    index.ts           # Shared TypeScript types
+```
+
+## Limitations & Future Work
+
+- Service Worker scope is limited to the LiveMock app's own origin. To use LiveMock's interception in a separate app, you would need to embed or import the SW registration there.
+- Query string matching is not yet supported (path matching is pathname-only).
+- Response body templating (dynamic values, sequence cycling) is not yet implemented.
+- No drag-to-reorder for routes.
+
+## License
+
+MIT
